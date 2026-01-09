@@ -1,0 +1,12 @@
+{
+  "name": "shopify-parcelgrid-bridge",
+  "version": "1.0.0",
+  "description": "Bridge between Shopify and ParcelGrid",
+  "main": "api/shopify-to-parcelgrid.js",
+  "dependencies": {
+    "node-fetch": "^3.3.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
