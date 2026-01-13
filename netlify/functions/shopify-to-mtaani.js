@@ -1,32 +1,42 @@
-// Example Vercel Serverless Function: api/bridge.js
-export default async function handler(req, res) {
-  const PARCELGRID_KEY = "J7TgPP7kAXbJIbLsXynP31aesqQ1kEBR"; // Replace with your regenerated key later
-  const order = req.body;
+exports.handler = async (event, context) => {
+  // Netlify only allows POST requests for this bridge
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
+  }
 
-  // 1. Format the data for ParcelGrid
+  const shopifyOrder = JSON.parse(event.body);
+  const MTAANI_API_KEY = process.env.MTAANI_API_KEY || "J7TgPP7kAXbJIbLsXynP31aesqQ1kEBR";
+
+  const agentId = shopifyOrder.note_attributes?.find(attr => attr.name === 'mtaani_agent_id')?.value;
+
   const payload = {
-    deliveries: [{
-      recipient_name: `${order.shipping_address.first_name} ${order.shipping_address.last_name}`,
-      recipient_address: `${order.shipping_address.address1}, ${order.shipping_address.city}`,
-      recipient_phone: order.shipping_address.phone,
-      order_reference: order.name // This shows your Shopify Order # (e.g. #1005)
-    }]
+    sender_name: "Blush Noir",
+    recipient_name: `${shopifyOrder.customer.first_name} ${shopifyOrder.customer.last_name}`,
+    recipient_phone: shopifyOrder.shipping_address.phone,
+    destination_agent_id: agentId || "1", 
+    description: `Order ${shopifyOrder.name}`,
+    price: parseFloat(shopifyOrder.total_price)
   };
 
-  // 2. Send to ParcelGrid
   try {
-    const pgResponse = await fetch('https://api.tryparcel.com/api/v4/task', {
+    const response = await fetch('https://api.pickupmtaani.com/api/v1/packages/agent-agent', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PARCELGRID_KEY}`,
+        'Authorization': `Bearer ${MTAANI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
 
-    const result = await pgResponse.json();
-    return res.status(200).json({ status: 'Success', parcelgrid_id: result.id });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+    const result = await response.json();
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, mtaani_id: result.data?.id })
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
-}
+};
